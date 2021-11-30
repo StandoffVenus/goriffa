@@ -45,7 +45,7 @@ func ExampleFormatFromReader() {
 	// Output: 44100Hz, 16-bit, 2-channel, PCM audio.
 }
 
-func ExampleWriteTo() {
+func ExampleWritePCM() {
 	f := FileHandle()
 	defer f.Close()
 
@@ -61,7 +61,7 @@ func ExampleWriteTo() {
 		Channels:      2,
 		BitsPerSample: 16,
 	}
-	n, err := wave.WriteTo(w, format, SomePCMData())
+	n, err := wave.WritePCM(w, format, SomePCMData())
 	if err != nil {
 		panic(err)
 	}
@@ -210,7 +210,7 @@ func TestFormatFromReaderWrongReadCount(t *testing.T) {
 	assert.ErrorIs(t, fmtErrTooFew, goriffa.ErrCorrupted)
 }
 
-func TestWriteTo(t *testing.T) {
+func TestWritePCM(t *testing.T) {
 	pcm := []byte{4, 2}
 	mockWriter := new(MockGoriffaReadWriter)
 	mockWriter.
@@ -231,14 +231,14 @@ func TestWriteTo(t *testing.T) {
 	fmt, fmtErr := wave.FormatFromReader(exampleReader())
 	assert.NoError(t, fmtErr)
 
-	writeN, writeErr := wave.WriteTo(mockWriter, fmt, pcm)
+	writeN, writeErr := wave.WritePCM(mockWriter, fmt, pcm)
 	assert.NoError(t, writeErr)
 	assert.Equal(t, len(fmtExample)+internal.LengthChunkHeader+len(pcm), writeN)
 
 	mockWriter.AssertExpectations(t)
 }
 
-func TestWriteToFormatError(t *testing.T) {
+func TestWritePCMFormatError(t *testing.T) {
 	err := errors.New("error")
 	mockWriter := new(MockGoriffaReadWriter)
 	mockWriter.
@@ -252,14 +252,14 @@ func TestWriteToFormatError(t *testing.T) {
 	fmt, fmtErr := wave.FormatFromReader(exampleReader())
 	assert.NoError(t, fmtErr)
 
-	writeN, writeErr := wave.WriteTo(mockWriter, fmt, nil)
+	writeN, writeErr := wave.WritePCM(mockWriter, fmt, nil)
 	assert.ErrorIs(t, writeErr, err)
 	assert.Equal(t, len(fmtExample), writeN)
 
 	mockWriter.AssertExpectations(t)
 }
 
-func TestWriteToDataError(t *testing.T) {
+func TestWritePCMDataError(t *testing.T) {
 	err := errors.New("error")
 	pcm := []byte{4, 2}
 	mockWriter := new(MockGoriffaReadWriter)
@@ -281,7 +281,7 @@ func TestWriteToDataError(t *testing.T) {
 	fmt, fmtErr := wave.FormatFromReader(exampleReader())
 	assert.NoError(t, fmtErr)
 
-	writeN, writeErr := wave.WriteTo(mockWriter, fmt, pcm)
+	writeN, writeErr := wave.WritePCM(mockWriter, fmt, pcm)
 	assert.ErrorIs(t, writeErr, err)
 	assert.Equal(t, len(fmtExample)+internal.LengthChunkHeader+len(pcm), writeN)
 

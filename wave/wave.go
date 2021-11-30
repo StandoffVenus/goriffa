@@ -55,8 +55,9 @@ type Format struct {
 	AudioFormat AudioFormat
 }
 
-// WriteTo will write Wavefile data to the provided RIFF writer.
-// The number of bytes written and any error will be returned.
+// WritePCM will write PCM data to the provided RIFF writer
+// in the Wavefile format. The number of bytes written and
+// any error will be returned.
 //
 // The provided format will be written as the Wavefile's format
 // header, whereas the PCM data provided will be written in the
@@ -64,7 +65,7 @@ type Format struct {
 //
 // The writer is expected to be initialized - that is, the RIFF
 // header is expected to be written to the writer already.
-func WriteTo(w goriffa.Writer, f Format, pcm []byte) (int, error) {
+func WritePCM(w goriffa.Writer, f Format, pcm []byte) (int, error) {
 	data := formatToBytes(f)
 	fmtN, fmtErr := w.WriteChunk(internal.Chunk{
 		Identifier: goriffa.FourCCFormat,
