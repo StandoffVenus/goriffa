@@ -22,5 +22,5 @@ jobs:
         go test ./... \
           -timeout 20s \
           -race \
-          -shuffle \
-          -failfast \
+          -shuffle on \
+          -failfast
