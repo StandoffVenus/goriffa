@@ -1,5 +1,7 @@
 # Goriffa
 
+![Build](https://github.com/standoffvenus/goriffa/actions/workflows/build.yml/badge.svg)
+
 Goriffa is a package focused on writing and reading RIFF (Resource Interchange File Format) files. Wavefiles (.wav) and WEBP files are stored via RIFF, for example.
 
 The main motivation for this library was (initially) to fork [go-riff](https://github.com/youpy/go-riff) and [go-wav](https://github.com/youpy/go-wav) in order to allow streaming/dynamic sizing of RIFF data. However, given the lack of updates for the aforementioned packages and the drastic API redesign, it made more sense for Goriffa to become its own repository.
