@@ -19,8 +19,8 @@ jobs:
 
     - name: Run unit tests.
       run: >
-        go test ./...
-          -timeout 20s
-          -race
-          -shuffle
-          -failfast
+        go test ./... \
+          -timeout 20s \
+          -race \
+          -shuffle \
+          -failfast \
