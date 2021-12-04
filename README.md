@@ -1,6 +1,6 @@
 # Goriffa
 
-![Build](https://github.com/standoffvenus/docs/actions/workflows/build.yml/badge.svg)
+![Build](https://github.com/standoffvenus/goriffa/actions/workflows/build.yml/badge.svg)
 
 Goriffa is a package focused on writing and reading RIFF (Resource Interchange File Format) files. Wavefiles (.wav) and WEBP files are stored via RIFF, for example.
 
