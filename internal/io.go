@@ -125,12 +125,12 @@ func WriteAt(w io.WriterAt, b []byte, offset int64) (int, error) {
 // array.
 func Must4Byte(b []byte) [4]byte {
 	if len(b) != 4 {
-		panic(fmt.Errorf("wrong number of bytes: %d", len(b)))
+		Panic(fmt.Errorf("wrong number of bytes: %d", len(b)))
 	}
 
 	var array [4]byte
 	if n := copy(array[:], b); n != 4 {
-		panic(fmt.Errorf("wrong number of bytes copied: %d", n))
+		Panic(fmt.Errorf("wrong number of bytes copied: %d", n))
 	}
 
 	return array
@@ -151,7 +151,7 @@ func ReadLittleEndianUInt16(r io.ByteReader) uint16 {
 	for i := 0; i < cap(bytes); i++ {
 		b, err := r.ReadByte()
 		if err != nil {
-			panic(err)
+			Panic(err)
 		}
 		bytes = append(bytes, b)
 	}
@@ -167,7 +167,7 @@ func ReadLittleEndianUInt32(r io.ByteReader) uint32 {
 	for i := 0; i < cap(bytes); i++ {
 		b, err := r.ReadByte()
 		if err != nil {
-			panic(err)
+			Panic(err)
 		}
 		bytes = append(bytes, b)
 	}

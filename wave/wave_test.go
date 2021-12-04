@@ -20,6 +20,15 @@ import (
 
 var fmtExample = make([]byte, 0, 24)
 
+const (
+	audioOffset          int = internal.LengthChunkHeader
+	channelOffset            = audioOffset + 2
+	sampleRateOffset         = channelOffset + 2
+	bytesPerSecondOffset     = sampleRateOffset + 4
+	blockAlignOffset         = bytesPerSecondOffset + 4
+	bitRateOffset            = blockAlignOffset + 2
+)
+
 func ExampleFormatFromReader() {
 	// A Wavefile with the following properties
 	// - PCM audio format
@@ -117,18 +126,8 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestNewFormat(t *testing.T) {
-	f := wave.Format{
-		AudioFormat:   wave.PCM,
-		SampleRate:    44100,
-		Channels:      2,
-		BitsPerSample: 16,
-	}
-
-	assert.Equal(t, wave.PCM, f.AudioFormat)
-	assert.Equal(t, uint32(44100), f.SampleRate)
-	assert.Equal(t, uint16(2), f.Channels)
-	assert.Equal(t, uint16(16), f.BitsPerSample)
+func TestBadWaveDataIsCorruptedData(t *testing.T) {
+	assert.ErrorIs(t, wave.ErrBadWaveData, internal.ErrCorrupted)
 }
 
 func TestFormatFromReader(t *testing.T) {
@@ -146,37 +145,35 @@ func TestFormatFromReaderWrongFOURCC(t *testing.T) {
 		Identifier: goriffa.FourCCData,
 		Data:       fmtExample[internal.LengthChunkHeader:],
 	}))
-	assert.ErrorIs(t, fmtErr, internal.ErrCorrupted)
+	assert.ErrorIs(t, fmtErr, wave.ErrBadWaveData)
 }
 
 func TestFormatFromReaderWrongBytesPerSecond(t *testing.T) {
 	var badFmt [wave.LengthFormatChunk]byte
 	copy(badFmt[:], fmtExample)
-	badFmt[internal.LengthChunkHeader+8] = 0
-	badFmt[internal.LengthChunkHeader+8+1] = 0
-	badFmt[internal.LengthChunkHeader+8+2] = 0
-	badFmt[internal.LengthChunkHeader+8+2] = 0
+	badFmt[bytesPerSecondOffset] = 0
+	badFmt[bytesPerSecondOffset+1] = 0
+	badFmt[bytesPerSecondOffset+2] = 0
+	badFmt[bytesPerSecondOffset+3] = 0
 
 	_, fmtErr := wave.FormatFromReader(readerFrom(&internal.Chunk{
 		Identifier: goriffa.FourCCFormat,
 		Data:       badFmt[internal.LengthChunkHeader:],
 	}))
-	assert.ErrorIs(t, fmtErr, internal.ErrCorrupted)
+	assert.ErrorIs(t, fmtErr, wave.ErrInconsistentBytesPerSecond)
 }
 
 func TestFormatFromReaderWrongBlockAlignment(t *testing.T) {
 	var badFmt [wave.LengthFormatChunk]byte
 	copy(badFmt[:], fmtExample)
-	badFmt[internal.LengthChunkHeader+12] = 0
-	badFmt[internal.LengthChunkHeader+12+1] = 0
-	badFmt[internal.LengthChunkHeader+12+2] = 0
-	badFmt[internal.LengthChunkHeader+12+2] = 0
+	badFmt[blockAlignOffset] = 0
+	badFmt[blockAlignOffset+1] = 0
 
 	_, fmtErr := wave.FormatFromReader(readerFrom(&internal.Chunk{
 		Identifier: goriffa.FourCCFormat,
 		Data:       badFmt[internal.LengthChunkHeader:],
 	}))
-	assert.ErrorIs(t, fmtErr, internal.ErrCorrupted)
+	assert.ErrorIs(t, fmtErr, wave.ErrInconsistentBlockAlignment)
 }
 
 func TestFormatFromReaderError(t *testing.T) {
@@ -206,8 +203,43 @@ func TestFormatFromReaderWrongReadCount(t *testing.T) {
 	_, fmtErrTooMany := wave.FormatFromReader(mockReader)
 	_, fmtErrTooFew := wave.FormatFromReader(mockReader)
 
-	assert.ErrorIs(t, fmtErrTooMany, goriffa.ErrCorrupted)
-	assert.ErrorIs(t, fmtErrTooFew, goriffa.ErrCorrupted)
+	assert.ErrorIs(t, fmtErrTooMany, wave.ErrBadWaveData)
+	assert.ErrorIs(t, fmtErrTooFew, wave.ErrBadWaveData)
+}
+
+func TestValidateZeroBitRateInvalid(t *testing.T) {
+	fmt := wave.Format{
+		BitsPerSample: 0,
+	}
+
+	assert.ErrorIs(t, wave.Validate(fmt), wave.ErrInvalidBitRate)
+}
+
+func TestValidateNonByteBitRateInvalid(t *testing.T) {
+	fmt := wave.Format{
+		BitsPerSample: 13,
+	}
+
+	assert.ErrorIs(t, wave.Validate(fmt), wave.ErrInvalidBitRate)
+}
+
+func TestValidateZeroChannelsInvalid(t *testing.T) {
+	fmt := wave.Format{
+		BitsPerSample: 16,
+		Channels:      0,
+	}
+
+	assert.ErrorIs(t, wave.Validate(fmt), wave.ErrInvalidChannelCount)
+}
+
+func TestValidateZeroSampleRateIsInvalid(t *testing.T) {
+	fmt := wave.Format{
+		BitsPerSample: 16,
+		Channels:      2,
+		SampleRate:    0,
+	}
+
+	assert.ErrorIs(t, wave.Validate(fmt), wave.ErrInvalidSampleRate)
 }
 
 func TestWritePCM(t *testing.T) {
@@ -238,19 +270,32 @@ func TestWritePCM(t *testing.T) {
 	mockWriter.AssertExpectations(t)
 }
 
+func TestWritePCMNonPCMFormat(t *testing.T) {
+	fmt := wave.Format{
+		BitsPerSample: 16,
+		Channels:      2,
+		SampleRate:    44100,
+		AudioFormat:   7,
+	}
+
+	writeN, writeErr := wave.WritePCM(nil, fmt, []byte{})
+	assert.ErrorIs(t, writeErr, wave.ErrBadWaveData)
+	assert.Equal(t, int(0), writeN)
+}
+
 func TestWritePCMFormatError(t *testing.T) {
 	err := errors.New("error")
+	fmt := wave.Format{
+		BitsPerSample: 16,
+		Channels:      2,
+		SampleRate:    44100,
+		AudioFormat:   wave.PCM,
+	}
 	mockWriter := new(MockGoriffaReadWriter)
 	mockWriter.
-		On("WriteChunk", goriffa.Chunk{
-			Identifier: goriffa.FourCCFormat,
-			Data:       fmtExample[internal.LengthChunkHeader:],
-		}).
+		On("WriteChunk", mock.Anything).
 		Return(len(fmtExample), err).
 		Once()
-
-	fmt, fmtErr := wave.FormatFromReader(exampleReader())
-	assert.NoError(t, fmtErr)
 
 	writeN, writeErr := wave.WritePCM(mockWriter, fmt, nil)
 	assert.ErrorIs(t, writeErr, err)
